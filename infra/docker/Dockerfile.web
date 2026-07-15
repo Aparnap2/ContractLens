@@ -1,0 +1,62 @@
+# =============================================================================
+# ContractLens Web — Multi-stage Dockerfile (Next.js)
+# NOTE: Placeholder until the Next.js app is scaffolded.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Builder — install dependencies & build
+# ---------------------------------------------------------------------------
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy dependency manifests
+COPY apps/web/package.json apps/web/yarn.lock apps/web/pnpm-lock.yaml /app/apps/web/ 2>/dev/null || true
+
+# Install dependencies
+RUN --mount=type=cache,target=/root/.npm \
+    if [ -f /app/apps/web/yarn.lock ]; then \
+        yarn install --frozen-lockfile; \
+    elif [ -f /app/apps/web/pnpm-lock.yaml ]; then \
+        corepack enable && pnpm install --frozen-lockfile; \
+    else \
+        npm ci; \
+    fi
+
+# Copy source and build
+COPY apps/web/ /app/apps/web/
+RUN npm run build 2>/dev/null || echo "⚠️  No build script defined — placeholder mode"
+
+# ---------------------------------------------------------------------------
+# Stage 2: Runtime — serve
+# ---------------------------------------------------------------------------
+FROM node:20-alpine AS runtime
+
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    PORT=3000
+
+# Create non-root user
+RUN addgroup -S contractlens && \
+    adduser -S -G contractlens contractlens
+
+# Copy built artifacts
+COPY --from=builder /app/apps/web/.next/ /app/apps/web/.next/
+COPY --from=builder /app/apps/web/node_modules/ /app/apps/web/node_modules/
+COPY --from=builder /app/apps/web/package.json /app/apps/web/
+COPY --from=builder /app/apps/web/public/ /app/apps/web/public/ 2>/dev/null || true
+
+# Copy standalone output if using output: "standalone" in next.config.js
+COPY --from=builder /app/apps/web/.next/standalone/ /app/ 2>/dev/null || true
+
+RUN chown -R contractlens:contractlens /app
+
+USER contractlens
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+CMD ["node", "apps/web/server.js"]

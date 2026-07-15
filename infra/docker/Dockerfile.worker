@@ -1,0 +1,83 @@
+# =============================================================================
+# ContractLens Worker — Multi-stage Dockerfile
+# Target: production-grade LangGraph agent worker, minimal footprint, non-root
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Builder — compile dependencies
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install system build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast, deterministic dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# ── Layer 1: root project dependencies ────────────────────────────────
+COPY pyproject.toml /app/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r /app/pyproject.toml
+
+# ── Layer 2: local packages ──────────────────────────────────────────
+COPY packages/ /app/packages/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    for pkg in /app/packages/*/; do \
+        if [ -f "$pkg/pyproject.toml" ] || [ -f "$pkg/setup.py" ] || [ -f "$pkg/setup.cfg" ]; then \
+            uv pip install --system "$pkg"; \
+        fi; \
+    done
+
+# ── Layer 3: worker application dependencies ─────────────────────────
+COPY apps/worker/pyproject.toml apps/worker/requirements.txt /app/apps/worker/ 2>/dev/null || true
+RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ -f /app/apps/worker/requirements.txt ]; then \
+        uv pip install --system -r /app/apps/worker/requirements.txt; \
+    elif [ -f /app/apps/worker/pyproject.toml ]; then \
+        uv pip install --system /app/apps/worker; \
+    fi
+
+# ---------------------------------------------------------------------------
+# Stage 2: Runtime — minimal production image
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Runtime system dependencies (libpq for asyncpg)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libpq-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -r contractlens && \
+    useradd -r -g contractlens -d /app -s /sbin/nologin contractlens
+
+# Copy installed Python environment from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
+
+# Copy application source
+COPY apps/worker/ /app/apps/worker/
+COPY packages/ /app/packages/
+
+# Secure permissions
+RUN chown -R contractlens:contractlens /app
+
+USER contractlens
+
+# No ports exposed — worker consumes tasks from the queue
+CMD ["python", "-m", "apps.worker.main"]

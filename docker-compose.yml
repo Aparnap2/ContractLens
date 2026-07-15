@@ -1,0 +1,213 @@
+# =============================================================================
+# ContractLens — Docker Compose (Production-lite)
+# Target: 16 GB RAM host (NFR-4), all containers combined < 6 GB
+# =============================================================================
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart: &restart-policy
+  restart: unless-stopped
+
+# ── Shared environment ──────────────────────────────────────────────────────
+x-shared-env: &shared-env
+  DATABASE_URL: "postgresql+asyncpg://contractlens:contractlens@postgres:5432/contractlens"
+  REDIS_URL: "redis://redis:6379/0"
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  POOLSIDE_API_KEY: ${POOLSIDE_API_KEY:-}
+  LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+  LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+  LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse:3000}
+  FILE_STORAGE_PATH: /data/files
+  APP_ENV: ${APP_ENV:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+# =============================================================================
+services:
+  # ── API Gateway (FastAPI) ──────────────────────────────────────────────────
+  api:
+    <<: *restart-policy
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    image: contractlens/api:latest
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *shared-env
+      SERVICE_TYPE: api
+    volumes:
+      - file_storage:/data/files
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - contractlens_net
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ── Worker (LangGraph Agent) ───────────────────────────────────────────────
+  worker:
+    <<: *restart-policy
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.worker
+    image: contractlens/worker:latest
+    environment:
+      <<: *shared-env
+      SERVICE_TYPE: worker
+    volumes:
+      - file_storage:/data/files
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - contractlens_net
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ── PostgreSQL 16 ──────────────────────────────────────────────────────────
+  postgres:
+    <<: *restart-policy
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: contractlens
+      POSTGRES_PASSWORD: contractlens
+      POSTGRES_DB: contractlens
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/migrations:/docker-entrypoint-initdb.d/migrations:ro
+      - ./infra/seed:/docker-entrypoint-initdb.d/seed:ro
+    networks:
+      - contractlens_net
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contractlens -d contractlens"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ── Redis 7 ────────────────────────────────────────────────────────────────
+  redis:
+    <<: *restart-policy
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - contractlens_net
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # ── Langfuse (Observability — optional, enable with --profile observability) ─
+  langfuse:
+    profiles: ["observability"]
+    image: langfuse/langfuse:latest
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://langfuse:langfuse@langfuse-postgres:5432/langfuse"
+      NEXTAUTH_SECRET: ${LANGFUSE_SECRET_KEY:-change-me-in-production}
+      SALT: ${LANGFUSE_SALT:-change-me-in-production}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+    depends_on:
+      langfuse-postgres:
+        condition: service_healthy
+    networks:
+      - contractlens_net
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  langfuse-postgres:
+    profiles: ["observability"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse
+      POSTGRES_DB: langfuse
+    volumes:
+      - langfuse_data:/var/lib/postgresql/data
+    networks:
+      - contractlens_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  file_storage:
+    driver: local
+  langfuse_data:
+    driver: local
+
+# =============================================================================
+networks:
+  contractlens_net:
+    name: contractlens_net
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: contractlens_net

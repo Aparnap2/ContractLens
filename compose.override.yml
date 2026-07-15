@@ -1,0 +1,67 @@
+# =============================================================================
+# ContractLens — Docker Compose Override (Local Development)
+# Enables hot-reload via bind mounts and exposes dev-friendly defaults.
+# =============================================================================
+
+services:
+  api:
+    build:
+      target: builder  # keep full build toolchain for hot reload
+    image: contractlens/api:dev
+    command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      # Source code bind mounts for hot reload
+      - ./apps/api:/app/apps/api
+      - ./packages:/app/packages
+      - ./pyproject.toml:/app/pyproject.toml
+      # Persistent file storage
+      - file_storage:/data/files
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: development
+      LOG_LEVEL: debug
+      RELOAD: "true"
+    deploy:
+      resources:
+        limits:
+          memory: 768M   # slightly higher headroom during dev
+        reservations:
+          memory: 256M
+
+  worker:
+    build:
+      target: builder
+    image: contractlens/worker:dev
+    command: python -m apps.worker.main
+    volumes:
+      - ./apps/worker:/app/apps/worker
+      - ./packages:/app/packages
+      - ./pyproject.toml:/app/pyproject.toml
+      - file_storage:/data/files
+    environment:
+      APP_ENV: development
+      LOG_LEVEL: debug
+    deploy:
+      resources:
+        limits:
+          memory: 2G   # extra room for debugging / profiling
+        reservations:
+          memory: 512M
+
+  postgres:
+    ports:
+      - "5432:5432"   # expose to host for local tooling (pgAdmin, DBeaver)
+    environment:
+      POSTGRES_PASSWORD: contractlens  # simple password for dev
+
+  redis:
+    ports:
+      - "6379:6379"   # expose to host for redis-cli / RedisInsight
+
+  # Enable langfuse in dev by default (remove profile constraint)
+  langfuse:
+    profiles: []      # override: always start langfuse in dev
+
+  langfuse-postgres:
+    profiles: []

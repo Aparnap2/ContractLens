@@ -1,0 +1,84 @@
+# =============================================================================
+# ContractLens — .dockerignore
+# Minimises build context sent to Docker daemon.
+# =============================================================================
+
+# ── Version control ──────────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# ── Environment & secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# ── Python artifacts ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+.venv/
+venv/
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
+htmlcov/
+*.pyc
+
+# ── Node / JS artifacts ─────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# ── Testing (not needed in build) ────────────────────────────────────────────
+tests/
+test_*.py
+*_test.py
+
+# ── IDE / editor ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── OS files ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+
+# ── Terraform / IaC (optional future) ────────────────────────────────────────
+.terraform/
+*.tfstate*
+*.tfplan
+
+# ── Docker (avoid sending Dockerfiles themselves in context) ─────────────────
+docker-compose*.yml
+compose*.yml
+.dockerignore
+Dockerfile*
+
+# ── Documentation ────────────────────────────────────────────────────────────
+docs/
+*.md
+README.md
+
+# ── Local data directories (mounted as volumes at runtime) ───────────────────
+data/
+uploads/
+exports/

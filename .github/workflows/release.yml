@@ -1,0 +1,100 @@
+# ContractLens Release
+# Trigger: tag v* (e.g. v0.1.0, v1.2.3-rc1)
+# Builds and tags Docker images.
+# Deploy target added in Phase B.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  PYTHON_VERSION: "3.12"
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ github.repository_owner }}
+
+jobs:
+  release:
+    name: Build and tag images
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta-api
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/contractlens-api
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=,suffix=,format=short
+
+      - name: Extract metadata (worker)
+        id: meta-worker
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/contractlens-worker
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=,suffix=,format=short
+
+      - name: Build and push api image
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        with:
+          context: .
+          file: infra/docker/api.Dockerfile
+          target: production
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          push: true
+
+      - name: Build and push worker image
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        with:
+          context: .
+          file: infra/docker/worker.Dockerfile
+          target: production
+          tags: ${{ steps.meta-worker.outputs.tags }}
+          labels: ${{ steps.meta-worker.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          push: true
+
+      - name: Generate release notes
+        run: |
+          # Placeholder — integrate git-cliff or gh release create in Phase B
+          echo "Release ${{ github.ref_name }}" > /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo "Images published:" >> /tmp/release-notes.md
+          echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/contractlens-api:${{ github.ref_name }}\`" >> /tmp/release-notes.md
+          echo "- \`${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/contractlens-worker:${{ github.ref_name }}\`" >> /tmp/release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        with:
+          body_path: /tmp/release-notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

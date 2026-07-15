@@ -1,0 +1,159 @@
+================================================================================
+                     MASTER SERVICES AGREEMENT
+================================================================================
+
+This MASTER SERVICES AGREEMENT (the "MSA") is entered into on 15th March
+2024, by and between:
+
+GlobalTech Inc., a corporation organized under the laws of Delaware, USA,
+having its principal place of business at 100 Innovation Drive, Wilmington,
+Delaware (hereinafter "Company");
+
+AND
+
+DataServe India Private Limited, a company incorporated under the Companies
+Act, 2013, having its registered office at 789, Electronic City, Bengaluru,
+Karnataka 560100 (hereinafter "Service Provider").
+
+================================================================================
+1.  DEFINITIONS
+================================================================================
+
+"Affiliate" means any entity that directly or indirectly controls, is
+controlled by, or is under common control with a party.
+
+"Change of Control" means (a) the acquisition of a party by another entity
+by way of merger, amalgamation, or consolidation; (b) the sale of all or
+substantially all of the assets of a party; or (c) any change in the
+beneficial ownership of more than fifty percent (50%) of the voting shares
+of a party.
+
+================================================================================
+2.  CHANGE OF CONTROL
+================================================================================
+
+2.1 In the event of a Change of Control of the Service Provider, the Company
+shall have the right to terminate this MSA immediately upon written notice.
+
+2.2 In the event of a Change of Control of the Service Provider initiated by
+the Service Provider's management, the Service Provider shall pay the Company
+a change of control penalty of INR 5,00,00,000 (Rupees Five Crores only) as
+liquidated damages.
+
+2.3 The Company may also, at its sole discretion, assign this Agreement to
+any successor entity in the event of a Change of Control.
+
+================================================================================
+3.  TERM AND RENEWAL
+================================================================================
+
+3.1 This MSA shall commence on the Effective Date and shall continue for an
+initial term of three (3) years.
+
+3.2 Thereafter, this MSA shall automatically renew for successive twelve-month
+periods unless either party provides written notice of non-renewal at least
+ninety (90) days prior to the end of the then-current term.
+
+3.3 Upon each automatic renewal, the Service Provider's fees shall automatically
+increase by twenty percent (20%) over the fees applicable during the preceding
+term.
+
+================================================================================
+4.  TERMINATION
+================================================================================
+
+4.1 Either party may terminate this MSA upon a material breach by the other
+party that remains uncured for thirty (30) days after written notice.
+
+4.2 The Service Provider may terminate this MSA for convenience upon providing
+not less than one hundred twenty (120) days prior written notice to the
+Company.
+
+================================================================================
+5.  FEES AND PAYMENT
+================================================================================
+
+5.1 The annual fees under this MSA shall be INR 1,50,00,000 (Rupees One Crore
+Fifty Lakhs only), payable in equal quarterly installments.
+
+5.2 Late payment shall attract interest at eighteen percent (18%) per annum.
+
+================================================================================
+6.  LIQUIDATED DAMAGES
+================================================================================
+
+6.1 In the event of delay in delivery of services beyond the agreed timelines,
+the Service Provider shall pay liquidated damages at the rate of INR 50,000
+per day of delay, up to a maximum of 10% of the annual contract value.
+
+6.2 The parties agree that the actual damages may be difficult to ascertain
+and the liquidated damages represent a genuine pre-estimate of loss.
+
+================================================================================
+7.  STAMP DUTY
+================================================================================
+
+7.1 This MSA has been executed on stamp paper of INR 100 (Rupees One Hundred
+only) purchased in the State of Karnataka.
+
+7.2 The parties agree that the stamp duty paid is sufficient for the purposes
+of this Agreement.
+
+================================================================================
+8.  GOVERNING LAW AND DISPUTE RESOLUTION
+================================================================================
+
+8.1 This MSA shall be governed by and construed in accordance with the laws
+of India.
+
+8.2 Any and all disputes arising out of or in connection with this MSA shall
+be finally resolved by arbitration in New Delhi. The arbitration shall be
+conducted in the English language.
+
+8.3 The exclusive jurisdiction for all matters arising under this MSA shall
+vest solely with the courts in New Delhi, India.
+
+================================================================================
+9.  INDEMNIFICATION
+================================================================================
+
+9.1 The Service Provider shall indemnify, defend, and hold harmless the Company
+from and against any and all claims, liabilities, damages, losses, and
+expenses arising out of any third-party claim related to the services.
+
+9.2 The indemnification obligation shall survive termination of this MSA for
+a period of five (5) years.
+
+================================================================================
+10. CONSEQUENTIAL DAMAGES
+================================================================================
+
+10.1 Neither party shall be liable to the other for any indirect, incidental,
+special, consequential, or punitive damages, including but not limited to
+loss of profits, loss of business, or loss of data.
+
+10.2 The limitation in Section 10.1 shall not apply to (a) breach of
+confidentiality, (b) indemnification obligations, or (c) intentional
+misconduct.
+
+================================================================================
+11. NOTICES
+================================================================================
+
+Any notice required under this MSA shall be in writing and shall be deemed
+given when delivered by email with confirmed receipt.
+
+================================================================================
+
+ANNEXURE A: SERVICES DESCRIPTION
+The Service Provider shall provide data processing, cloud infrastructure
+management, and 24/7 technical support services.
+
+ANNEXURE B: SERVICE LEVEL AGREEMENT
+- Uptime commitment: 99.9%
+- Response time: 4 hours for critical issues
+- Resolution time: 24 hours for critical issues
+
+================================================================================
+
+Page 1 of 4

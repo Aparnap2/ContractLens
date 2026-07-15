@@ -1,0 +1,92 @@
+# =============================================================================
+# ContractLens API — Multi-stage Dockerfile
+# Target: production-grade, minimal footprint, non-root
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Builder — compile dependencies
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install system build dependencies required by psycopg2 / asyncpg / etc.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast, deterministic dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# ── Layer 1: root project dependencies ────────────────────────────────
+# These change infrequently → cached aggressively
+COPY pyproject.toml /app/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r /app/pyproject.toml
+
+# ── Layer 2: local packages (domain, providers, rules, etc.) ──────────
+# Each has its own pyproject.toml; install as non-editable so code is
+# baked into site-packages (no source-link needed at runtime).
+COPY packages/ /app/packages/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    for pkg in /app/packages/*/; do \
+        if [ -f "$pkg/pyproject.toml" ] || [ -f "$pkg/setup.py" ] || [ -f "$pkg/setup.cfg" ]; then \
+            uv pip install --system "$pkg"; \
+        fi; \
+    done
+
+# ── Layer 3: API application dependencies ─────────────────────────────
+COPY apps/api/pyproject.toml apps/api/requirements.txt /app/apps/api/ 2>/dev/null || true
+RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ -f /app/apps/api/requirements.txt ]; then \
+        uv pip install --system -r /app/apps/api/requirements.txt; \
+    elif [ -f /app/apps/api/pyproject.toml ]; then \
+        uv pip install --system /app/apps/api; \
+    fi
+
+# ---------------------------------------------------------------------------
+# Stage 2: Runtime — minimal production image
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
+
+# Runtime system dependencies only (libpq for asyncpg, curl for health checks)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libpq-dev \
+        curl \
+        && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user (least privilege)
+RUN groupadd -r contractlens && \
+    useradd -r -g contractlens -d /app -s /sbin/nologin contractlens
+
+# Copy installed Python environment from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
+
+# Copy application source (needed for imports and debugging)
+COPY apps/api/ /app/apps/api/
+COPY packages/ /app/packages/
+
+# Secure permissions
+RUN chown -R contractlens:contractlens /app
+
+USER contractlens
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl --fail http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
